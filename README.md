@@ -1,9 +1,17 @@
 # Postman MCP Generator
 
-Welcome to your generated MCP server! 🚀 This project was created with the [Postman MCP Generator](https://postman.com/explore/mcp-generator), configured to [Model Context Provider (MCP)](https://modelcontextprotocol.io/introduction) Server output mode. It provides you with:
+Welcome to Repliers MCP server! 🚀 The MCP server is configured to [Model Context Provider (MCP)](https://modelcontextprotocol.io/introduction) Server output mode. It provides you with:
 
 - ✅ An MCP-compatible server (`mcpServer.js`)
-- ✅ Automatically generated JavaScript tools for each selected Postman API request
+- ✅ The following tools to access Repliers API:
+  - `search`
+  - `get-a-listing`
+  - `find-similar-listings`
+  - `get-address-history`
+  - `property-types-styles`
+  - `get-deleted-listings`
+  - `areas-cities-and-neighborhoods`
+  - `buildings`
 
 Let's set things up!
 
@@ -13,10 +21,10 @@ Let's set things up!
 
 Before starting, please ensure you have:
 
-- [Node.js (v18+ required, v20+ recommended)](https://nodejs.org/)
+- [Node.js (v20+ required, v22+ recommended)](https://nodejs.org/)
 - [npm](https://www.npmjs.com/) (included with Node)
 
-Warning: if you run with a lower version of Node, `fetch` won't be present. Tools use `fetch` to make HTTP calls. To work around this, you can modify the tools to use `node-fetch` instead. Make sure that `node-fetch` is installed as a dependency and then import it as `fetch` into each tool file.
+Warning: if you run with a lower version of Node, some things may not work as expected.
 
 ### 📥 Installation & Setup
 
@@ -30,21 +38,20 @@ npm install
 
 ### 🔐 Set tool environment variables
 
-In the `.env` file, you'll see environment variable placeholders, one for each workspace that the selected tools are from. For example, if you selected requests from 2 workspaces, e.g. Acme and Widgets, you'll see two placeholders:
+You should create an `.env` file in the root of your project directory. This file will hold environment variable that Repliers tools will use to authenticate with the APIs.
+
+Set the value of `REPLIERS_API_KEY` to your Repliers API key, which you can find in your [Repliers API keys](https://login.repliers.com/dashboard/apikeys). If you don't have an account, you can create one at [Repliers](https://auth.repliers.com/en/signup).
 
 ```
-ACME_API_KEY=
-WIDGETS_API_KEY=
+REPLIERS_API_KEY=
 ```
 
-Update the values with actual API keys for each API. These environment variables are used inside of the generated tools to set the API key for each request. You can inspect a file in the `tools` directory to see how it works.
+This environment variable is used inside of the tools to set the API key for each request. You can inspect a file in the `tools` directory to see how it works.
 
 ```javascript
 // environment variables are used inside of each tool file
-const apiKey = process.env.ACME_API_KEY;
+const apiKey = process.env.REPLIERS_API_KEY;
 ```
-
-**Caveat:** This may not be correct for every API. The generation logic is relatively simple - for each workspace, we create an environment variable with the same name as the workspace slug, and then use that environment variable in each tool file that belongs to that workspace. If this isn't the right behavior for your chosen API, no problem! You can manually update anything in the `.env` file or tool files to accurately reflect the API's method of authentication.
 
 ## 🌐 Test the MCP Server with Postman
 
@@ -56,7 +63,7 @@ The Postman Desktop Application is the easiest way to run and test MCP servers. 
 
 **Step 2**: Read out the documentation article [here](https://learning.postman.com/docs/postman-ai-agent-builder/mcp-requests/create/) and see how to create an MCP request inside the Postman app.
 
-**Step 3**: Set the type of the MCP request to `STDIO` and set the command to `node </absolute/path/to/mcpServer.js>`. If you have issues with using only `node` (e.g. an old version is used), supply an absolute path instead to a node version 18+. You can get the full path to node by running:
+**Step 3**: Set the type of the MCP request to `STDIO` and set the command to `node </absolute/path/to/mcpServer.js>`. If you have issues with using only `node` (e.g. an old version is used), supply an absolute path instead to a node version 20+. You can get the full path to node by running:
 
 ```sh
 which node
@@ -87,9 +94,12 @@ You can connect your MCP server to any MCP client. Here we provide instructions 
 ```json
 {
   "mcpServers": {
-    "<server_name>": {
+    "repliers": {
       "command": "<absolute/path/to/node>",
-      "args": ["<absolute/path/to/mcpServer.js>"]
+      "args": ["<absolute/path/to/mcpServer.js>"],
+      "env": {
+        "REPLIERS_API_KEY": "your-repliers-api-key"
+      }
     }
   }
 }
@@ -97,7 +107,7 @@ You can connect your MCP server to any MCP client. Here we provide instructions 
 
 Restart Claude Desktop to activate this change. Make sure the new MCP is turned on and has a green circle next to it. If so, you're ready to begin a chat session that can use the tools you've connected.
 
-**Warning**: If you don't supply an absolute path to a `node` version that is v18+, Claude (and other MCP clients) may fall back to another `node` version on the system of a previous version. In this case, the `fetch` API won't be present and tool calls will not work. If that happens, you can a) install a newer version of node and point to it in the command, or b) import `node-fetch` into each tool as `fetch`, making sure to also add the `node-fetch` dependency to your package.json.
+**Warning**: If you don't supply an absolute path to a `node` version that is v20+, Claude (and other MCP clients) may fall back to another `node` version on the system of a previous version.
 
 ### Additional Options
 
@@ -121,12 +131,15 @@ Add server configuration to Claude Desktop (Settings → Developers → Edit Con
     "<your_server_name>": {
       "command": "node",
       "args": [
-        "run", "-i", "--rm", "--env-file=.env", "<your_server_name>",
+        "run",
+        "-i",
+        "--rm",
+        "--env-file=.env",
+        "<your_server_name>",
         "/ABSOLUTE/PATH/TO/PROJECT/DIRECTORY/mcp-unstructured-partition-demo/"
       ],
       "env": {
-        "REPLIERS_API_KEY": "",
-        "RESULTS_PER_PAGE": ""
+        "REPLIERS_API_KEY": "your-repliers-api-key"
       }
     }
   }
@@ -161,7 +174,7 @@ node mcpServer.js --sse
 
 #### List tools
 
-List descriptions and parameters from all generated tools with:
+List descriptions and parameters from all included tools with:
 
 ```sh
 node index.js tools
@@ -172,27 +185,73 @@ Example:
 ```
 Available Tools:
 
-Workspace: acme-workspace
-  Collection: useful-api
-    list_all_customers
-      Description: Retrieve a list of useful things.
+Workspace: repliers-api
+  Collection: property-types-styles.js
+    list_property_types_and_styles
+      Description: List property types and styles from the Repliers API.
       Parameters:
-        - magic: The required magic power
-        - limit: Number of results returned
-        [...additional parameters...]
+
+  Collection: get-deleted-listings.js
+    get_deleted_listings
+      Description: Retrieve deleted listings from the Repliers API.
+      Parameters:
+        - updatedOn: The date when the listing was updated.
+        - minUpdatedOn: The minimum date for updated listings.
+        - maxUpdatedOn: The maximum date for updated listings.
+
+  Collection: areas-cities-and-neighborhoods.js
+    list_locations
+      Description: List geographical location data such as areas, cities, and neighborhoods.
+      Parameters:
+        - area: Limits location metadata to areas matching the supplied value.
+        - city: Limits location metadata to cities matching the supplied value.
+        - class: Limits location metadata to classes matching the supplied value.
+        - neighborhood: Limits location metadata to neighborhoods matching the supplied value.
+        - search: Limits location metadata to areas, cities, or neighborhoods that match or partially match the supplied value.
+
+  Collection: get-address-history.js
+    get_address_history
+      Description: Retrieve the MLS history of a specific address.
+      Parameters:
+        - city: The city of the property.
+        - streetName: The street name of the property.
+        - streetNumber: The street number of the property.
+        - unitNumber: The unit number of the property.
+        - streetSuffix: The street suffix of the property.
+        - streetDirection: The street direction of the property.
+        - zip: The zip code of the property.
+
+  Collection: buildings.js
+    repliers_buildings_search
+      Description: Search for building data using the Repliers API. Returns information about buildings/complexes rather than individual listings. All parameters including map are sent as query parameters in GET requests.
+      Parameters:
+        - params: No description
+        - pageNum: Page number for pagination (default: 1). If specified loads a specific page in the results set
+        - resultsPerPage: Number of buildings to return per page (default: 100, max: 100)
+
+  Collection: get-a-listing.js
+    get_listing
+      Description: Get a listing using the MLS.
+      Parameters:
+        - mlsNumber: The MLS number of the listing you wish to retrieve.
+        - boardId: Filter by boardId. This is only required if your account has access to more than one MLS.
+
+  Collection: find-similar-listings.js
+    find_similar_listings
+      Description: Find similar listings using the MLS number.
+      Parameters:
+        - mlsNumber: The MLS number of the listing to find similar listings for.
+        - boardId: Filter by one or more board IDs.
+        - fields: Limit the response to specific fields (e.g., "listPrice,soldPrice" or "images[5]").
+        - listPriceRange: Returns similar listings within a price range (e.g., 250000 for +/- $250,000).
+        - radius: Show similar listings within a specified radius in kilometers.
+        - sortBy: Sort similar listings by a specific field (e.g., "updatedOnDesc", "createdOnAsc").
+
+  Collection: search.js
+    repliers_listings_search
+      Description: Comprehensive property search using Repliers API with all supported parameters. Most parameters are sent as query parameters (GET request). imageSearchItems and map parameters trigger a POST request with body parameters.
+      Parameters:
+        - params: No description
+        - pageNum: Page number for pagination (default: 1)
+        - resultsPerPage: Number of results per page (default: 100, max: 100)
 ```
-
-## ➕ Adding New Tools
-
-Extend your MCP server with more tools easily:
-
-1. Visit [Postman MCP Generator](https://postman.com/explore/mcp-generator).
-2. Pick new API request(s), generate a new MCP server, and download it.
-3. Copy new generated tool(s) into your existing project's `tools/` folder.
-4. Update your `tools/paths.js` file to include new tool references.
-
-## 💬 Questions & Support
-
-Visit the [Postman MCP Generator](https://postman.com/explore/mcp-generator) page for updates and new capabilities.
-
-Join the `#mcp-lab` channel in the [Postman Discord](https://discord.gg/HQJWM8YF) to share what you've built and get help.
