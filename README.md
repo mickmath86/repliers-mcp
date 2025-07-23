@@ -1,17 +1,44 @@
-# Postman MCP Generator
+# Repliers MCP Server
 
-Welcome to Repliers MCP server! 🚀 The MCP server is configured to [Model Context Provider (MCP)](https://modelcontextprotocol.io/introduction) Server output mode. It provides you with:
+Repliers MCP server provides a set of tools to access the [Repliers API](https://repliers.com/developer-agencies/) in a Model Context Provider (MCP) compatible format.
 
-- ✅ An MCP-compatible server (`mcpServer.js`)
-- ✅ The following tools to access Repliers API:
-  - `search`
-  - `get-a-listing`
-  - `find-similar-listings`
-  - `get-address-history`
-  - `property-types-styles`
-  - `get-deleted-listings`
-  - `areas-cities-and-neighborhoods`
-  - `buildings`
+Repliers API provides developers with real-time access to MLS listings, advanced property search and filters, media delivery (images, floorplans, tours), market analytics, and AI-powered tools like instant valuations and alerts. It enables rapid development of real estate platforms without needing to manage backend infrastructure or MLS integrations.
+
+This lets you use Claude Desktop, or any MCP Client, to use natural language to accomplish things via Repliers API tools, such as:
+
+- "Find me 3 bedroom apartments in San Francisco below $1 million that has been on market for less than a week"
+- "What are the property types and styles available in San Francisco?"
+- "Give me history of 123 Main St, San Francisco"
+- "What is the median list price for residential houses for sale in San Francisco aggregated by month within last 20 months?"
+
+## Features
+
+The following tools to access Repliers API are provided by the MCP server.
+
+`search` - The search tool is the core query engine that lets you search across active, sold, or leased property listings using flexible filters like:
+
+- location (city, neighborhood, coordinates, etc.)
+- Price range
+- Property type & style
+- Bedrooms, bathrooms, size
+- Status (active, sold, leased)
+- Keywords, features (e.g. pool, finished basement)
+- Listing date, open house flags
+- and many more
+
+`get-a-listing` - Fetches detailed information for a specific property listing using its ID or MLS number including address history
+
+`find-similar-listings` - Returns listings that are similar to a given property based on location, price, type, or other attributes.
+
+`get-address-history` - Retrieves the historical listing activity for a specific address, including previous sales, rentals, and listing changes.
+
+`property-types-styles` - Returns a reference list of supported property types (e.g. condo, detached) and architectural styles for a given MLS board.
+
+`get-deleted-listings` - Provides access to listings that were recently removed or deleted from the MLS.
+
+`areas-cities-and-neighborhoods` - Returns a hierarchical catalog of geographic areas, cities, and neighborhoods as provided by MLS.
+
+`buildings` - Fetches data about known buildings (e.g., condos or apartments) including name, address, and metadata.
 
 Let's set things up!
 
@@ -21,7 +48,7 @@ Let's set things up!
 
 Before starting, please ensure you have:
 
-- [Node.js (v20+ required, v22+ recommended)](https://nodejs.org/)
+- [Node.js (v18+ required, v22+ recommended)](https://nodejs.org/)
 - [npm](https://www.npmjs.com/) (included with Node)
 
 Warning: if you run with a lower version of Node, some things may not work as expected.
