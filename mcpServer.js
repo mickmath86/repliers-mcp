@@ -231,8 +231,12 @@ async function run() {
       });
 
       // SSE endpoint for MCP connections
-      app.get("/sse", async (_req, res) => {
-        console.error("[SSE] SSE connection request received");
+      app.get("/sse", async (req, res) => {
+        console.error("[SSE] ========== SSE CONNECTION REQUEST ==========");
+        console.error("[SSE] Headers:", JSON.stringify(req.headers, null, 2));
+        console.error("[SSE] Query:", JSON.stringify(req.query, null, 2));
+        console.error("[SSE] IP:", req.ip);
+        console.error("[SSE] Method:", req.method);
 
         const server = new Server(
           {
@@ -252,37 +256,106 @@ async function run() {
         await setupServerHandlers(server, tools);
 
         const transport = new SSEServerTransport("/messages", res);
-        transports[transport.sessionId] = transport;
-        servers[transport.sessionId] = server;
+        const sessionId = transport.sessionId;
+        
+        console.error("[SSE] Created transport with sessionId:", sessionId);
+        console.error("[SSE] Transport type:", transport.constructor.name);
+        
+        transports[sessionId] = transport;
+        servers[sessionId] = server;
+        
+        console.error("[SSE] Active sessions:", Object.keys(transports).length);
+        console.error("[SSE] Session IDs:", Object.keys(transports));
 
         res.on("close", async () => {
-          console.error("[SSE] SSE connection closed, sessionId:", transport.sessionId);
-          delete transports[transport.sessionId];
+          console.error("[SSE] ========== SSE CONNECTION CLOSED ==========");
+          console.error("[SSE] Closing sessionId:", sessionId);
+          console.error("[SSE] Active sessions before cleanup:", Object.keys(transports).length);
+          
+          delete transports[sessionId];
           await server.close();
-          delete servers[transport.sessionId];
+          delete servers[sessionId];
+          
+          console.error("[SSE] Active sessions after cleanup:", Object.keys(transports).length);
         });
 
         await server.connect(transport);
-        console.error("[SSE] SSE server connected, sessionId:", transport.sessionId);
+        console.error("[SSE] Server connected successfully");
+        console.error("[SSE] Client should POST to: /messages?sessionId=" + sessionId);
+        console.error("[SSE] ============================================");
       });
 
       // Messages endpoint for MCP protocol
       app.post("/messages", express.json(), async (req, res) => {
+        console.error("[MESSAGES] ========== POST /messages REQUEST ==========");
+        console.error("[MESSAGES] Timestamp:", new Date().toISOString());
+        console.error("[MESSAGES] Method:", req.method);
+        console.error("[MESSAGES] URL:", req.url);
+        console.error("[MESSAGES] Path:", req.path);
+        console.error("[MESSAGES] Query string:", JSON.stringify(req.query, null, 2));
+        console.error("[MESSAGES] Headers:", JSON.stringify(req.headers, null, 2));
+        console.error("[MESSAGES] Content-Type:", req.headers['content-type']);
+        console.error("[MESSAGES] Body:", JSON.stringify(req.body, null, 2));
+        console.error("[MESSAGES] IP:", req.ip);
+        
         const sessionId = req.query.sessionId;
-        console.error("[MESSAGES] Message received for sessionId:", sessionId);
+        console.error("[MESSAGES] Extracted sessionId:", sessionId);
+        console.error("[MESSAGES] SessionId type:", typeof sessionId);
+        console.error("[MESSAGES] SessionId is undefined:", sessionId === undefined);
+        console.error("[MESSAGES] SessionId is null:", sessionId === null);
+        console.error("[MESSAGES] SessionId is empty string:", sessionId === "");
+        
+        console.error("[MESSAGES] Active sessions:", Object.keys(transports).length);
+        console.error("[MESSAGES] Available session IDs:", Object.keys(transports));
         
         const transport = transports[sessionId];
         const server = servers[sessionId];
+        
+        console.error("[MESSAGES] Transport found:", !!transport);
+        console.error("[MESSAGES] Server found:", !!server);
 
-        if (transport && server) {
-          await transport.handlePostMessage(req, res);
-        } else {
-          console.error("[MESSAGES] No transport/server found for sessionId:", sessionId);
-          res.status(400).json({ 
-            error: "No transport/server found for sessionId",
-            sessionId 
+        if (!sessionId) {
+          console.error("[MESSAGES] ERROR: sessionId is missing from query string");
+          console.error("[MESSAGES] Expected format: POST /messages?sessionId=<id>");
+          console.error("[MESSAGES] Received query:", req.query);
+          return res.status(400).json({ 
+            error: "Missing sessionId in query string",
+            message: "Expected format: POST /messages?sessionId=<id>",
+            receivedQuery: req.query,
+            availableSessions: Object.keys(transports)
           });
         }
+
+        if (!transport || !server) {
+          console.error("[MESSAGES] ERROR: No transport/server found for sessionId:", sessionId);
+          console.error("[MESSAGES] This usually means:");
+          console.error("[MESSAGES]   1. The SSE connection at GET /sse was never established");
+          console.error("[MESSAGES]   2. The sessionId is incorrect or expired");
+          console.error("[MESSAGES]   3. The SSE connection was closed");
+          return res.status(400).json({ 
+            error: "No active MCP session found",
+            sessionId,
+            availableSessions: Object.keys(transports),
+            message: "Ensure GET /sse was called first to establish a session"
+          });
+        }
+
+        try {
+          console.error("[MESSAGES] Calling transport.handlePostMessage...");
+          await transport.handlePostMessage(req, res);
+          console.error("[MESSAGES] Message handled successfully");
+        } catch (error) {
+          console.error("[MESSAGES] ERROR handling message:", error);
+          console.error("[MESSAGES] Error stack:", error.stack);
+          if (!res.headersSent) {
+            res.status(500).json({ 
+              error: "Internal server error handling MCP message",
+              message: error.message
+            });
+          }
+        }
+        
+        console.error("[MESSAGES] ============================================");
       });
 
       const port = process.env.PORT || 3001;
