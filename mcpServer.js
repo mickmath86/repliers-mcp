@@ -194,7 +194,8 @@ async function run() {
       console.error("[DEBUG] Starting SSE mode");
 
       const app = express();
-      app.use(express.json());
+      // NOTE: Do NOT use express.json() globally - it consumes the request stream
+      // before SSEServerTransport.handlePostMessage() can read it
 
       const transports = {};
       const servers = {};
@@ -286,7 +287,8 @@ async function run() {
       });
 
       // Messages endpoint for MCP protocol
-      app.post("/messages", express.json(), async (req, res) => {
+      // NOTE: No express.json() middleware - SSEServerTransport needs raw stream
+      app.post("/messages", async (req, res) => {
         console.error("[MESSAGES] ========== POST /messages REQUEST ==========");
         console.error("[MESSAGES] Timestamp:", new Date().toISOString());
         console.error("[MESSAGES] Method:", req.method);
@@ -295,8 +297,9 @@ async function run() {
         console.error("[MESSAGES] Query string:", JSON.stringify(req.query, null, 2));
         console.error("[MESSAGES] Headers:", JSON.stringify(req.headers, null, 2));
         console.error("[MESSAGES] Content-Type:", req.headers['content-type']);
-        console.error("[MESSAGES] Body:", JSON.stringify(req.body, null, 2));
+        console.error("[MESSAGES] Content-Length:", req.headers['content-length']);
         console.error("[MESSAGES] IP:", req.ip);
+        // NOTE: Do NOT log req.body - it would consume the stream before MCP SDK reads it
         
         const sessionId = req.query.sessionId;
         console.error("[MESSAGES] Extracted sessionId:", sessionId);
