@@ -6,4 +6,4 @@ RUN npm install
 
 COPY . .
 
-ENTRYPOINT ["node", "mcpServer.js"]
+ENTRYPOINT ["node", "mcpServer.js", "--sse"]
