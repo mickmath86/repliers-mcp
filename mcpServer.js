@@ -199,8 +199,40 @@ async function run() {
       const transports = {};
       const servers = {};
 
+      // Request logging middleware
+      app.use((req, res, next) => {
+        console.error(`[REQUEST] ${req.method} ${req.path} from ${req.ip}`);
+        next();
+      });
+
+      // Health check endpoint for Railway
+      app.get("/health", (_req, res) => {
+        console.error("[HEALTH] Health check requested");
+        res.status(200).json({ 
+          status: "ok", 
+          service: SERVER_NAME,
+          timestamp: new Date().toISOString()
+        });
+      });
+
+      // Root endpoint
+      app.get("/", (_req, res) => {
+        console.error("[ROOT] Root endpoint requested");
+        res.status(200).json({ 
+          status: "ok", 
+          service: SERVER_NAME,
+          version: "0.1.0",
+          endpoints: {
+            health: "/health",
+            sse: "/sse",
+            messages: "/messages"
+          }
+        });
+      });
+
+      // SSE endpoint for MCP connections
       app.get("/sse", async (_req, res) => {
-        console.error("[DEBUG] SSE connection request received");
+        console.error("[SSE] SSE connection request received");
 
         const server = new Server(
           {
@@ -224,34 +256,71 @@ async function run() {
         servers[transport.sessionId] = server;
 
         res.on("close", async () => {
-          console.error("[DEBUG] SSE connection closed");
+          console.error("[SSE] SSE connection closed, sessionId:", transport.sessionId);
           delete transports[transport.sessionId];
           await server.close();
           delete servers[transport.sessionId];
         });
 
         await server.connect(transport);
-        console.error("[DEBUG] SSE server connected");
+        console.error("[SSE] SSE server connected, sessionId:", transport.sessionId);
       });
 
+      // Messages endpoint for MCP protocol
       app.post("/messages", express.json(), async (req, res) => {
         const sessionId = req.query.sessionId;
+        console.error("[MESSAGES] Message received for sessionId:", sessionId);
+        
         const transport = transports[sessionId];
         const server = servers[sessionId];
 
         if (transport && server) {
           await transport.handlePostMessage(req, res);
         } else {
-          res.status(400).send("No transport/server found for sessionId");
+          console.error("[MESSAGES] No transport/server found for sessionId:", sessionId);
+          res.status(400).json({ 
+            error: "No transport/server found for sessionId",
+            sessionId 
+          });
         }
       });
 
       const port = process.env.PORT || 3001;
-      console.error("[DEBUG] Starting Express server on port:", port);
+      const host = "0.0.0.0"; // Bind to all interfaces for Railway
+      console.error("[DEBUG] Starting Express server on", host + ":" + port);
 
-      app.listen(port, () => {
-        console.error(`[SSE Server] running on port ${port}`);
+      const httpServer = app.listen(port, host, () => {
+        console.error(`[SSE Server] running on ${host}:${port}`);
+        console.error(`[SSE Server] Health check: http://localhost:${port}/health`);
+        console.error(`[SSE Server] MCP endpoint: http://localhost:${port}/sse`);
       });
+
+      // Graceful shutdown for Railway
+      const shutdown = async () => {
+        console.error("[SHUTDOWN] Shutdown signal received");
+        
+        // Close all active MCP sessions
+        for (const sessionId in servers) {
+          console.error("[SHUTDOWN] Closing server for session:", sessionId);
+          await servers[sessionId].close();
+        }
+        
+        // Close HTTP server
+        httpServer.close(() => {
+          console.error("[SHUTDOWN] HTTP server closed");
+          process.exit(0);
+        });
+
+        // Force exit after 10 seconds
+        setTimeout(() => {
+          console.error("[SHUTDOWN] Forced exit after timeout");
+          process.exit(1);
+        }, 10000);
+      };
+
+      process.on("SIGTERM", shutdown);
+      process.on("SIGINT", shutdown);
+
     } else {
       console.error("[DEBUG] Starting stdio mode for Claude Studio");
 
